@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SkyGuard ATC — Low-Altitude Situational Awareness (ICONSIAM Bangkok)</title>
+  <!-- Leaflet WGS-84 地图核心 (断网时自动无缝切换内置离线极坐标空管雷达) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <link rel="stylesheet" href="./css/atc.css" />
+</head>
+<body>
+  <!-- 顶部专业航空塔台状态控制栏 -->
+  <header class="atc-topbar">
+    <div class="brand-group">
+      <div class="brand-radar-icon">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="9"></circle>
+          <circle cx="12" cy="12" r="4"></circle>
+          <line x1="12" y1="12" x2="18.5" y2="5.5"></line>
+        </svg>
+      </div>
+      <div class="brand-titles">
+        <div class="brand-main">
+          <span data-i18n="appTitle">SKYGUARD ATC</span>
+          <span id="run-mode-badge" class="mode-badge sandbox">DEMO SANDBOX</span>
+        </div>
+        <div class="brand-sub">
+          <span data-i18n="siteSubtitle">曼谷 ICONSIAM 低空态势感知台</span> · 13.7267°N 100.5105°E
+        </div>
+      </div>
+    </div>
+
+    <div class="topbar-center">
+      <!-- 业务场景模式一键切换：集群表演护航 vs 商圈日常值守 -->
+      <div class="segmented-control">
+        <button id="btn-mode-show" class="seg-btn active" data-i18n="profileShow">集群表演护航</button>
+        <button id="btn-mode-venue" class="seg-btn" data-i18n="profileVenue">商圈日常值守</button>
+      </div>
+
+      <!-- 全空域最高告警指示灯 -->
+      <div id="overall-status-pill" class="airspace-banner normal">
+        <span class="dot"></span>
+        <span id="overall-status-text" data-i18n="statusNormal">空域净空正常</span>
+      </div>
+
+      <!-- 沙盘模式下快速切换演示剧本（关闭仿真后自动隐藏） -->
+      <select id="quick-scenario-select" class="atc-select" title="Scenario">
+        <option value="mixed_live" data-i18n="qScenMixed">剧本：综合实况护航</option>
+        <option value="nfz_intrusion" data-i18n="qScenIntrusion">剧本：黑飞闯禁飞区</option>
+        <option value="dark_fpv_rf" data-i18n="qScenDarkFpv">剧本：5.8G 暗飞穿越机</option>
+        <option value="high_wind_hold" data-i18n="qScenHighWind">剧本：湄南河强风停飞</option>
+        <option value="clean_airspace" data-i18n="qScenClean">剧本：净空日常值守</option>
+      </select>
+    </div>
+
+    <div class="topbar-right">
+      <div id="bkk-clock" class="atc-clock">ICT 00:00:00</div>
+
+      <select id="map-layer-select" class="atc-select" title="Map Source">
+        <option value="dark_atc" data-i18n="mapDark">暗黑塔台图</option>
+        <option value="satellite" data-i18n="mapSat">高清卫星图</option>
+        <option value="osm" data-i18n="mapOsm">标准街道图</option>
+        <option value="google_hybrid" data-i18n="mapGoogle">Google 卫星混合</option>
+        <option value="polar_radar" data-i18n="mapPolar">离线极坐标雷达</option>
+      </select>
+
+      <button id="btn-audio-toggle" class="atc-btn" data-i18n="soundOn">告警音开启</button>
+
+      <!-- 中 / 英 / 泰 三语无缝切换 -->
+      <div class="segmented-control">
+        <button class="seg-btn lang-btn active" data-lang="zh">中文</button>
+        <button class="seg-btn lang-btn" data-lang="en">EN</button>
+        <button class="seg-btn lang-btn" data-lang="th">ไทย</button>
+      </div>
+
+      <button id="btn-open-settings" class="atc-btn primary" data-i18n="btnSettings">硬件与系统配置</button>
+    </div>
+  </header>
+
+  <!-- 三栏塔台态势主工作区 -->
+  <main id="atc-workspace" class="atc-workspace">
+    <!-- 左栏：集群安全门限检查单 + 实时活动航迹 -->
+    <aside class="side-column left">
+      <section id="sec-show-readiness" class="panel-section">
+        <div class="sec-header">
+          <span class="sec-title" data-i18n="readinessTitle">集群起飞安全放行门限</span>
+          <span id="readiness-verdict" class="readiness-verdict GO">允许起飞 (GO)</span>
+        </div>
+        <div class="checklist-grid">
+          <div id="chk-uav" class="chk-item ok">
+            <span data-i18n="chkUav">外部黑飞净空</span>
+            <span class="st">正常</span>
+          </div>
+          <div id="chk-manned" class="chk-item ok">
+            <span data-i18n="chkManned">低空有人机防撞</span>
+            <span class="st">正常</span>
+          </div>
+          <div id="chk-rf" class="chk-item ok">
+            <span data-i18n="chkRf">2.4/5.8G 频谱干净度</span>
+            <span class="st">正常</span>
+          </div>
+          <div id="chk-wind" class="chk-item ok">
+            <span data-i18n="chkWind">地面阵风安全门限</span>
+            <span class="st">正常</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel-section grow">
+        <div class="sec-header">
+          <span class="sec-title">
+            <span data-i18n="tracksTitle">空域实时航迹</span>
+            (<strong id="track-count">0</strong>)
+          </span>
+          <div class="segmented-control">
+            <button class="seg-btn track-filter active" data-filter="ALL" data-i18n="filterAll">全部</button>
+            <button id="tab-filter-uav" class="seg-btn track-filter" data-filter="UAV" data-i18n="filterUav">无人机</button>
+            <button id="tab-filter-manned" class="seg-btn track-filter" data-filter="MANNED" data-i18n="filterManned">有人机</button>
+          </div>
+        </div>
+
+        <div id="tracks-container" class="tracks-scroll"></div>
+      </section>
+    </aside>
+
+    <!-- 中栏：WGS-84 态势地图 + 底部黑匣子事件流 -->
+    <section class="center-column">
+      <div class="map-stage">
+        <div id="airspace-map"></div>
+        <canvas id="polar-radar-canvas"></canvas>
+
+        <div class="map-hud-topleft">
+          <div class="legend-row">
+            <span class="lg-swatch" style="background:#ef4444"></span>
+            <span id="lbl-legend-inner" data-i18n="legendInner">核心禁飞区 (450m)</span>
+          </div>
+          <div class="legend-row">
+            <span class="lg-swatch" style="background:#f59e0b"></span>
+            <span id="lbl-legend-outer" data-i18n="legendOuter">外圈预警区 (1.2km)</span>
+          </div>
+          <div id="row-legend-showbox" class="legend-row">
+            <span class="lg-swatch" style="background:#10b981"></span>
+            <span data-i18n="legendShowBox">湄南河集群编队空域盒</span>
+          </div>
+          <div class="legend-row">
+            <span class="lg-swatch" style="background:#a855f7"></span>
+            <span data-i18n="legendPilotLink">无人机—飞手关联线</span>
+          </div>
+        </div>
+
+        <div class="map-hud-bottomleft">
+          <div id="cursor-coords" class="coord-pill">WGS-84: 13.726700, 100.510500</div>
+          <button id="btn-recenter" class="atc-btn" data-i18n="btnRecenter">回到 ICONSIAM 中心</button>
+        </div>
+      </div>
+
+      <!-- 底部事件黑匣子与报表导出 -->
+      <div class="blackbox-dock">
+        <div class="dock-header">
+          <span class="sec-title" data-i18n="logTitle">入侵告警黑匣子记录</span>
+          <div style="display:flex; gap:6px;">
+            <button id="btn-export-csv" class="mini-btn" data-i18n="btnExportCsv">导出巡检报表 (CSV)</button>
+            <button id="btn-clear-events" class="mini-btn" data-i18n="btnClearLog">清空记录</button>
+          </div>
+        </div>
+        <div class="dock-table-wrap">
+          <table class="atc-table">
+            <thead>
+              <tr>
+                <th data-i18n="colTime">曼谷时间 (UTC+7)</th>
+                <th data-i18n="colLevel">级别</th>
+                <th data-i18n="colSource">传感器</th>
+                <th data-i18n="colTarget">目标型号 / 标识</th>
+                <th data-i18n="colDetail">事件详情</th>
+                <th data-i18n="colAction">联动处置</th>
+              </tr>
+            </thead>
+            <tbody id="events-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- 右栏（能力驱动渲染）：SDR 射频瀑布图 + 五要素微气象 -->
+    <aside id="right-sensor-col" class="side-column right">
+      <section id="sec-rf-panel" class="panel-section">
+        <div class="sec-header">
+          <span class="sec-title" data-i18n="rfTitle">SDR 射频频谱与暗飞监测</span>
+          <div class="segmented-control">
+            <button class="seg-btn rf-band-btn active" data-band="58g">5.8G</button>
+            <button class="seg-btn rf-band-btn" data-band="24g">2.4G</button>
+          </div>
+        </div>
+
+        <div class="spectrum-canvas-box">
+          <canvas id="fft-canvas"></canvas>
+          <canvas id="waterfall-canvas"></canvas>
+        </div>
+
+        <div class="rf-stats-bar">
+          <span><span data-i18n="rfCongestion">信道占用率</span>: <strong id="rf-congestion-val">34%</strong></span>
+          <span><span data-i18n="rfNoise">底噪</span>: <strong id="rf-noise-val">-93.8 dBm</strong></span>
+        </div>
+
+        <div id="rf-alerts-box"></div>
+      </section>
+
+      <section id="sec-wx-panel" class="panel-section grow">
+        <div class="sec-header">
+          <span class="sec-title" data-i18n="wxTitle">现场五要素微气象</span>
+          <span id="wx-safety-badge" class="readiness-verdict GO">适航</span>
+        </div>
+
+        <div class="weather-grid">
+          <div class="wx-cell">
+            <span data-i18n="wxWind">实时风速</span>
+            <strong id="wx-wind">3.4 m/s</strong>
+          </div>
+          <div class="wx-cell">
+            <span data-i18n="wxGust">最大阵风</span>
+            <strong id="wx-gust">4.9 m/s</strong>
+          </div>
+          <div class="wx-cell">
+            <span data-i18n="wxDir">风向方位</span>
+            <strong id="wx-dir">195° (SSW)</strong>
+          </div>
+          <div class="wx-cell">
+            <span data-i18n="wxTemp">环境温度</span>
+            <strong id="wx-temp">31.2 °C</strong>
+          </div>
+          <div class="wx-cell">
+            <span data-i18n="wxHum">相对湿度</span>
+            <strong id="wx-hum">68.5 %</strong>
+          </div>
+          <div class="wx-cell">
+            <span data-i18n="wxPres">大气压强</span>
+            <strong id="wx-pres">1007.8 hPa</strong>
+          </div>
+        </div>
+      </section>
+    </aside>
+  </main>
+
+  <!-- 硬件驱动开关与系统参数配置弹窗 -->
+  <div id="settings-modal" class="modal-backdrop">
+    <div class="modal-dialog">
+      <div class="modal-head">
+        <span data-i18n="modalSettingsTitle">硬件驱动裁剪与防区参数配置</span>
+        <button id="btn-close-settings" class="mini-btn">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="cfg-group">
+          <div class="cfg-group-title" data-i18n="secSimTitle">沙盘推演与销售演示引擎（交付客户时可一键关闭）</div>
+          <div class="cfg-row">
+            <label>
+              <input type="checkbox" id="cfg-sim-enabled" />
+              <span data-i18n="lblSimEnable">启用沙盘仿真数据源 (Simulator Driver)</span>
+            </label>
+          </div>
+          <div class="cfg-row">
+            <span data-i18n="lblSimScenario" style="font-size:12px; color:var(--text-secondary);">演示剧本选择</span>
+            <select id="cfg-sim-scenario" class="atc-select" style="width:340px;">
+              <option value="mixed_live" data-i18n="scenMixed">综合实况：集群护航 + Air3 入侵 + 直升机通场 + 突发FPV</option>
+              <option value="nfz_intrusion" data-i18n="scenIntrusion">商场安防：黑飞无人机直闯核心禁飞区（含飞手定位）</option>
+              <option value="dark_fpv_rf" data-i18n="scenDarkFpv">暗飞预警：未开 RID 的 5.8GHz 穿越机强能量逼近</option>
+              <option value="high_wind_hold" data-i18n="scenHighWind">气象特情：湄南河强阵风超限触发集群停飞保护</option>
+              <option value="clean_airspace" data-i18n="scenClean">净空静默：无外部威胁（验证日常值守常态）</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="cfg-group">
+          <div class="cfg-group-title" data-i18n="secHwTitle">千元级硬件模块开关（关闭后对应界面自动隐藏，零假功能残留）</div>
+          <div class="cfg-row">
+            <label><input type="checkbox" id="cfg-hw-rid" /> <span data-i18n="hwRid">RID 远程识别接收器</span></label>
+          </div>
+          <div class="cfg-row">
+            <label><input type="checkbox" id="cfg-hw-adsb" /> <span data-i18n="hwAdsb">ADS-B 航空接收机</span></label>
+          </div>
+          <div class="cfg-row">
+            <label><input type="checkbox" id="cfg-hw-sdr" /> <span data-i18n="hwSdr">SDR 宽带频谱监测仪</span></label>
+          </div>
+          <div class="cfg-row">
+            <label><input type="checkbox" id="cfg-hw-wx" /> <span data-i18n="hwWx">RS485 五要素微型气象站</span></label>
+          </div>
+        </div>
+
+        <div class="cfg-group">
+          <div class="cfg-group-title" data-i18n="secFenceTitle">ICONSIAM 电子围栏与通知联动</div>
+          <div class="cfg-row">
+            <span data-i18n="lblInnerRadius">核心禁飞区半径 (米)</span>
+            <input type="number" id="cfg-inner-r" class="cfg-input" min="100" max="3000" step="50" />
+          </div>
+          <div class="cfg-row">
+            <span data-i18n="lblOuterRadius">外圈预警区半径 (米)</span>
+            <input type="number" id="cfg-outer-r" class="cfg-input" min="300" max="8000" step="100" />
+          </div>
+          <div class="cfg-row">
+            <span data-i18n="lblLineToken">泰国安保群 LINE Notify Token</span>
+            <input type="password" id="cfg-line-token" class="cfg-input" placeholder="Optional LINE Token" />
+          </div>
+          <div class="cfg-row">
+            <span data-i18n="lblGoogleKey">可选 Google Maps API Key</span>
+            <input type="text" id="cfg-google-key" class="cfg-input" placeholder="Optional API Key" />
+          </div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button id="btn-cancel-settings" class="atc-btn" data-i18n="btnCancel">取消</button>
+        <button id="btn-save-settings" class="atc-btn primary" data-i18n="btnSaveSettings">保存并立即生效</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 安保执勤 LINE / Google Maps 飞手定位派单弹窗 -->
+  <div id="dispatch-modal" class="modal-backdrop">
+    <div class="modal-dialog" style="width:520px;">
+      <div class="modal-head">
+        <span data-i18n="modalDispatchTitle">安保巡逻派单报文（LINE）</span>
+        <button id="btn-close-dispatch" class="mini-btn">✕</button>
+      </div>
+      <div class="modal-body">
+        <p style="color:var(--text-secondary); font-size:12px;" data-i18n="dispatchHint">
+          保安在手机上点击下方 Google Maps 链接，即可直接步行导航至违规飞手所在位置进行劝离：
+        </p>
+        <pre id="dispatch-preview-text" class="dispatch-pre"></pre>
+        <div id="copy-toast" style="display:none; color:var(--status-ok); font-size:12px;"></div>
+      </div>
+      <div class="modal-foot">
+        <button id="btn-copy-dispatch" class="atc-btn primary" data-i18n="btnCopyDispatch">复制派单内容</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>

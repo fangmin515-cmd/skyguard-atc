@@ -1,0 +1,84 @@
+{
+  "site": {
+    "name": "ICONSIAM Riverfront Airspace",
+    "city": "Bangkok, Thailand",
+    "center_lat": 13.7267,
+    "center_lng": 100.5105,
+    "default_zoom": 15,
+    "operating_mode": "show_escort",
+    "default_lang": "zh"
+  },
+  "geofence": {
+    "inner_nfz_radius_m": 450,
+    "outer_warn_radius_m": 1200,
+    "altitude_ceiling_m": 300,
+    "show_formation_box": {
+      "enabled": true,
+      "name": "Chao Phraya Show Box A",
+      "polygon": [
+        [
+          13.7286,
+          100.5112
+        ],
+        [
+          13.7282,
+          100.5142
+        ],
+        [
+          13.7248,
+          100.5135
+        ],
+        [
+          13.7252,
+          100.5106
+        ]
+      ],
+      "max_alt_m": 220
+    }
+  },
+  "drivers": {
+    "simulator": {
+      "enabled": true,
+      "scenario": "mixed_live"
+    },
+    "rid_receiver": {
+      "enabled": true,
+      "udp_port": 9871
+    },
+    "adsb_receiver": {
+      "enabled": true,
+      "dump1090_url": "http://127.0.0.1:8080/data/aircraft.json",
+      "max_range_km": 15.0,
+      "max_alt_m": 1500
+    },
+    "sdr_spectrum": {
+      "enabled": true,
+      "alert_threshold_dbm": -62.0
+    },
+    "weather_station": {
+      "enabled": true,
+      "wind_warn_ms": 8.0,
+      "wind_crit_ms": 10.5
+    }
+  },
+  "whitelist_sns": [
+    "ICONSIAM-SHOW-MASTER",
+    "SHOW-FLEET-001",
+    "SEC-PATROL-TH01"
+  ],
+  "blacklist_sns": [
+    "1581F6N8C236E003"
+  ],
+  "notifications": {
+    "audio_alert": true,
+    "line_enabled": true,
+    "line_token": "",
+    "telegram_enabled": false,
+    "telegram_bot_token": "",
+    "telegram_chat_id": ""
+  },
+  "map": {
+    "default_layer": "dark_atc",
+    "google_maps_api_key": ""
+  }
+}

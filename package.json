@@ -1,0 +1,33 @@
+{
+  "name": "skyguard-atc",
+  "version": "1.0.0",
+  "description": "SkyGuard ATC — Low-Altitude Situational Awareness & Drone Early-Warning System (Web & Electron)",
+  "main": "electron/main.js",
+  "scripts": {
+    "start:web": "python3 server/main.py",
+    "start": "electron .",
+    "pack:mac": "electron-builder --mac",
+    "pack:win": "electron-builder --win"
+  },
+  "build": {
+    "appId": "com.skyguard.atc",
+    "productName": "SkyGuard ATC",
+    "files": [
+      "electron/**/*",
+      "web/**/*",
+      "server/**/*",
+      "config/**/*"
+    ],
+    "mac": {
+      "category": "public.app-category.utilities",
+      "target": ["dmg"]
+    },
+    "win": {
+      "target": ["nsis"]
+    }
+  },
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
+  }
+}
