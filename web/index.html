@@ -26,12 +26,22 @@
           <span id="run-mode-badge" class="mode-badge sandbox">DEMO SANDBOX</span>
         </div>
         <div class="brand-sub">
-          <span data-i18n="siteSubtitle">曼谷 ICONSIAM 低空态势感知台</span> · 13.7267°N 100.5105°E
+          <span id="site-name-label" data-i18n="siteSubtitle">曼谷 ICONSIAM 低空态势感知台</span> · <span id="site-coords-label">13.7267°N 100.5105°E</span>
         </div>
       </div>
     </div>
 
     <div class="topbar-center">
+      <!-- 场地快速切换下拉框 -->
+      <select id="venue-preset-select" class="atc-select" title="Venue Preset">
+        <option value="iconsiam" data-i18n="venueIconsiam">📍 曼谷 ICONSIAM (湄南河)</option>
+        <option value="centralworld" data-i18n="venueCentralWorld">📍 曼谷 CentralWorld 商圈</option>
+        <option value="asiatique" data-i18n="venueAsiatique">📍 曼谷 Asiatique 河滨夜市</option>
+        <option value="pattaya_bay" data-i18n="venuePattaya">📍 芭提雅海滩湾 (表演区)</option>
+        <option value="phuket_patong" data-i18n="venuePhuket">📍 普吉岛芭东海滩景区</option>
+        <option value="chiangmai_gate" data-i18n="venueChiangMai">📍 清迈塔佩门古城广场</option>
+      </select>
+
       <!-- 业务场景模式一键切换：集群表演护航 vs 商圈日常值守 -->
       <div class="segmented-control">
         <button id="btn-mode-show" class="seg-btn active" data-i18n="profileShow">集群表演护航</button>
@@ -143,10 +153,26 @@
             <span class="lg-swatch" style="background:#10b981"></span>
             <span data-i18n="legendShowBox">湄南河集群编队空域盒</span>
           </div>
+          <div id="row-legend-custom-nfz" class="legend-row" style="display:none;">
+            <span class="lg-swatch" style="background:#fb7185"></span>
+            <span data-i18n="legendCustomNfz">手绘多边形禁飞区</span>
+          </div>
           <div class="legend-row">
             <span class="lg-swatch" style="background:#a855f7"></span>
             <span data-i18n="legendPilotLink">无人机—飞手关联线</span>
           </div>
+        </div>
+
+        <!-- 右上角地图手绘自定义多边形禁飞区工具栏 -->
+        <div class="map-hud-topright">
+          <button id="btn-draw-nfz" class="atc-btn draw-btn" data-i18n="btnDrawNfz">✎ 手绘自定义禁飞区</button>
+          <button id="btn-finish-nfz" class="atc-btn draw-finish-btn" style="display:none;" data-i18n="btnFinishNfz">✓ 完成闭合</button>
+          <button id="btn-cancel-nfz" class="atc-btn" style="display:none;" data-i18n="btnCancelDraw">取消绘制</button>
+          <button id="btn-clear-nfz" class="atc-btn draw-clear-btn" style="display:none;" data-i18n="btnClearNfz">✕ 清除手绘禁飞区</button>
+        </div>
+
+        <div id="draw-hint-banner" class="draw-hint-banner" style="display:none;" data-i18n="drawHint">
+          请在地图上依次点击添加禁飞区顶点（至少3个点）
         </div>
 
         <div class="map-hud-bottomleft">

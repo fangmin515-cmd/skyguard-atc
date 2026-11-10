@@ -15,10 +15,18 @@ export class AirspaceMapController {
     this.innerCircle = null;
     this.outerCircle = null;
     this.showBoxPoly = null;
+    this.customNfzPoly = null;
     this.targetMarkers = new Map();
     this.trailLines = new Map();
     this.pilotMarkers = new Map();
     this.tetherLines = new Map();
+
+    // 手绘多边形禁飞区状态
+    this.isDrawingNfz = false;
+    this.draftPoints = [];
+    this.draftPolyLayer = null;
+    this.draftVertexMarkers = [];
+    this._mapClickHandler = null;
 
     // 缓存最新帧用于极坐标雷达重绘
     this.lastConfig = null;
@@ -56,15 +64,13 @@ export class AirspaceMapController {
       this.setLayer("polar_radar");
     }
 
-    // 雷达扫描动画（用于离线极坐标模式）
-    const animateRadar = () => {
-      this.radarSweepDeg = (this.radarSweepDeg + 1.4) % 360;
-      if (this.layerMode === "polar_radar") {
+    // 极坐标离线雷达低功耗刷新（仅在启用极坐标模式且页面可见时按 4Hz 刷新，平时 0% CPU 占用）
+    setInterval(() => {
+      if (this.layerMode === "polar_radar" && !document.hidden) {
+        this.radarSweepDeg = (this.radarSweepDeg + 12) % 360;
         this._renderPolarRadar();
       }
-      requestAnimationFrame(animateRadar);
-    };
-    requestAnimationFrame(animateRadar);
+    }, 250);
   }
 
   setLayer(mode, googleKey = "") {
@@ -143,6 +149,7 @@ export class AirspaceMapController {
     if (this.innerCircle) this.leafletMap.removeLayer(this.innerCircle);
     if (this.outerCircle) this.leafletMap.removeLayer(this.outerCircle);
     if (this.showBoxPoly) this.leafletMap.removeLayer(this.showBoxPoly);
+    if (this.customNfzPoly) this.leafletMap.removeLayer(this.customNfzPoly);
 
     // 外圈预警区 (Amber)
     this.outerCircle = window.L.circle([clat, clng], {
@@ -165,6 +172,18 @@ export class AirspaceMapController {
       fillOpacity: 0.09,
       interactive: false
     }).addTo(this.leafletMap);
+
+    // 用户手绘自定义多边形禁飞区 (Rose-Crimson Solid/Hatched)
+    const customPoly = gf.custom_nfz_polygon;
+    if (Array.isArray(customPoly) && customPoly.length >= 3) {
+      this.customNfzPoly = window.L.polygon(customPoly, {
+        color: "#fb7185",
+        weight: 2.2,
+        fillColor: "#e11d48",
+        fillOpacity: 0.22,
+        interactive: false
+      }).addTo(this.leafletMap);
+    }
 
     // 湄南河集群表演空域盒 (仅在集群护航模式下渲染)
     const box = gf.show_formation_box;
@@ -353,6 +372,78 @@ export class AirspaceMapController {
     }
   }
 
+  startDrawingCustomNfz(onPointAdded) {
+    if (!window.L || !this.leafletMap) return;
+    if (this.layerMode === "polar_radar") {
+      this.setLayer("dark_atc");
+    }
+    this.cancelDrawingCustomNfz();
+    this.isDrawingNfz = true;
+    this.draftPoints = [];
+
+    const container = this.leafletMap.getContainer();
+    container.style.cursor = "crosshair";
+
+    this._mapClickHandler = (e) => {
+      if (!this.isDrawingNfz) return;
+      const pt = [Number(e.latlng.lat.toFixed(6)), Number(e.latlng.lng.toFixed(6))];
+      this.draftPoints.push(pt);
+
+      const vmk = window.L.circleMarker(pt, {
+        radius: 5,
+        color: "#fff",
+        weight: 1.5,
+        fillColor: "#f43f5e",
+        fillOpacity: 1
+      }).addTo(this.leafletMap);
+      this.draftVertexMarkers.push(vmk);
+
+      if (this.draftPolyLayer) {
+        this.leafletMap.removeLayer(this.draftPolyLayer);
+      }
+      if (this.draftPoints.length >= 2) {
+        this.draftPolyLayer = window.L.polygon(this.draftPoints, {
+          color: "#fb7185",
+          weight: 2,
+          dashArray: "5, 5",
+          fillColor: "#e11d48",
+          fillOpacity: 0.25,
+          interactive: false
+        }).addTo(this.leafletMap);
+      }
+
+      if (onPointAdded) onPointAdded(this.draftPoints.length);
+    };
+
+    this.leafletMap.on("click", this._mapClickHandler);
+  }
+
+  finishDrawingCustomNfz() {
+    const pts = [...this.draftPoints];
+    this.cancelDrawingCustomNfz();
+    return pts;
+  }
+
+  cancelDrawingCustomNfz() {
+    this.isDrawingNfz = false;
+    this.draftPoints = [];
+    if (this.leafletMap) {
+      this.leafletMap.getContainer().style.cursor = "";
+      if (this._mapClickHandler) {
+        this.leafletMap.off("click", this._mapClickHandler);
+        this._mapClickHandler = null;
+      }
+      if (this.draftPolyLayer) {
+        this.leafletMap.removeLayer(this.draftPolyLayer);
+        this.draftPolyLayer = null;
+      }
+      for (const m of this.draftVertexMarkers) {
+        this.leafletMap.removeLayer(m);
+      }
+    }
+    this.draftVertexMarkers = [];
+  }
+
   // 100% 离线可用的极坐标空管雷达态势图（断网演出场地自动保底）
   _renderPolarRadar() {
     const canvas = this.polarCanvas;
@@ -439,6 +530,25 @@ export class AirspaceMapController {
     ctx.fill();
     ctx.stroke();
     ctx.restore();
+
+    // 若存在手绘自定义多边形禁飞区，在极坐标雷达上同步渲染
+    const customPoly = gf.custom_nfz_polygon;
+    if (Array.isArray(customPoly) && customPoly.length >= 3) {
+      ctx.save();
+      ctx.strokeStyle = "#fb7185";
+      ctx.fillStyle = "rgba(225, 29, 72, 0.2)";
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      customPoly.forEach(([plat, plng], idx) => {
+        const pxy = latLngToXY(plat, plng);
+        if (idx === 0) ctx.moveTo(pxy.x, pxy.y);
+        else ctx.lineTo(pxy.x, pxy.y);
+      });
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    }
 
     // 雷达微弱扫描余晖扇形
     const sweepRad = ((this.radarSweepDeg - 90) * Math.PI) / 180;

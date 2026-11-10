@@ -87,13 +87,18 @@ def evaluate_target_threat(target: AerialTarget, config: Dict[str, Any]) -> Aeri
     else:
         target.whitelist_status = "UNKNOWN"
 
-    # 空间防区判定
+    # 空间防区判定（含手绘自定义多边形禁飞区、表演编队保护盒、内外圈圆环）
+    custom_poly = gf.get("custom_nfz_polygon", [])
+    in_custom_nfz = len(custom_poly) >= 3 and point_in_polygon(target.lat, target.lng, custom_poly)
+
     show_box = gf.get("show_formation_box", {})
     in_show_box = False
     if show_box.get("enabled") and site.get("operating_mode") == "show_escort":
         in_show_box = point_in_polygon(target.lat, target.lng, show_box.get("polygon", []))
 
-    if in_show_box:
+    if in_custom_nfz:
+        target.zone_status = "CUSTOM_NFZ"
+    elif in_show_box:
         target.zone_status = "SHOW_BOX"
     elif dist_m <= inner_r:
         target.zone_status = "NFZ_CORE"
@@ -106,14 +111,14 @@ def evaluate_target_threat(target: AerialTarget, config: Dict[str, Any]) -> Aeri
     if target.whitelist_status == "WHITELIST":
         target.threat_level = "NORMAL"
     elif target.category == "MANNED":
-        # 有人驾驶航空器（直升机/通航）：低空进入外圈触发防撞预警
-        if dist_m <= outer_r and target.alt_m <= 500:
-            target.threat_level = "CRITICAL" if dist_m <= inner_r else "CAUTION"
+        # 有人驾驶航空器（直升机/通航）：低空进入外圈或自定义禁飞区触发防撞预警
+        if (dist_m <= outer_r or in_custom_nfz) and target.alt_m <= 500:
+            target.threat_level = "CRITICAL" if (dist_m <= inner_r or in_custom_nfz) else "CAUTION"
         else:
             target.threat_level = "NORMAL"
     else:
         # 未知或黑名单无人机
-        if target.zone_status in ("NFZ_CORE", "SHOW_BOX"):
+        if target.zone_status in ("CUSTOM_NFZ", "NFZ_CORE", "SHOW_BOX"):
             target.threat_level = "CRITICAL"
         elif target.zone_status == "WARN_ZONE" or target.whitelist_status == "BLACKLIST":
             target.threat_level = "CAUTION"

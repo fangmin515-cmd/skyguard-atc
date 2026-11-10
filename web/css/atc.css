@@ -181,8 +181,8 @@ html, body {
 .airspace-banner.critical .dot { background: var(--status-crit); }
 
 @keyframes bannerFlash {
-  from { box-shadow: 0 0 0 rgba(239, 68, 68, 0); }
-  to { box-shadow: 0 0 14px rgba(239, 68, 68, 0.38); }
+  from { opacity: 1; }
+  to { opacity: 0.72; }
 }
 
 .topbar-right {
@@ -495,6 +495,54 @@ html, body {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.map-hud-topright {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.atc-btn.draw-btn {
+  background: rgba(16, 20, 28, 0.92);
+  border-color: rgba(251, 113, 133, 0.55);
+  color: #fda4af;
+  font-weight: 600;
+}
+.atc-btn.draw-btn:hover {
+  background: rgba(225, 29, 72, 0.2);
+  color: #fff;
+}
+
+.atc-btn.draw-finish-btn {
+  background: rgba(16, 185, 129, 0.22);
+  border-color: rgba(16, 185, 129, 0.65);
+  color: #6ee7b7;
+  font-weight: 600;
+}
+
+.atc-btn.draw-clear-btn {
+  background: rgba(239, 68, 68, 0.16);
+  border-color: rgba(239, 68, 68, 0.5);
+  color: #fca5a5;
+}
+
+.draw-hint-banner {
+  position: absolute;
+  top: 48px;
+  right: 10px;
+  z-index: 500;
+  background: rgba(225, 29, 72, 0.9);
+  color: #fff;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
 }
 .coord-pill {
   background: rgba(16, 20, 28, 0.88);

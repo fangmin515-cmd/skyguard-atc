@@ -1,7 +1,7 @@
 import { I18N } from "./i18n.js";
 import { AirspaceMapController } from "./map-controller.js";
 import { SpectrumWaterfallView } from "./spectrum-view.js";
-import { BrowserAutonomousEngine } from "./browser-engine.js";
+import { BrowserAutonomousEngine, VENUE_PRESETS } from "./browser-engine.js";
 
 class SkyGuardApp {
   constructor() {
@@ -75,6 +75,8 @@ class SkyGuardApp {
 
     if (this.useBrowserEngine) {
       const runBrowserTick = () => {
+        // 当标签页在后台隐藏时跳过重绘，保持电脑零发热、零风扇噪音
+        if (document.hidden) return;
         const frame = this.browserEngine.tick();
         this.handleTelemetryFrame(frame);
         this.events = this.browserEngine.getEvents(30);
@@ -173,6 +175,26 @@ class SkyGuardApp {
     if (!this.config) return;
     const ir = this.config.geofence?.inner_nfz_radius_m || 450;
     const or = this.config.geofence?.outer_warn_radius_m || 1200;
+    const clat = Number(this.config.site?.center_lat || 13.7267).toFixed(4);
+    const clng = Number(this.config.site?.center_lng || 100.5105).toFixed(4);
+    const coordsEl = document.getElementById("site-coords-label");
+    if (coordsEl) coordsEl.textContent = `${clat}°N ${clng}°E`;
+
+    const venueSel = document.getElementById("venue-preset-select");
+    if (venueSel && this.config.site?.preset_id) {
+      venueSel.value = this.config.site.preset_id;
+    }
+
+    const hasCustomPoly =
+      Array.isArray(this.config.geofence?.custom_nfz_polygon) &&
+      this.config.geofence.custom_nfz_polygon.length >= 3;
+    const lgCustom = document.getElementById("row-legend-custom-nfz");
+    if (lgCustom) lgCustom.style.display = hasCustomPoly ? "flex" : "none";
+    const clearBtn = document.getElementById("btn-clear-nfz");
+    if (clearBtn && !this.mapCtrl.isDrawingNfz) {
+      clearBtn.style.display = hasCustomPoly ? "inline-block" : "none";
+    }
+
     document.getElementById("lbl-legend-inner").textContent =
       this.lang === "th"
         ? `เขตห้ามบินชั้นใน (${ir} ม.)`
@@ -349,7 +371,8 @@ class SkyGuardApp {
           badgeTxt = this.t("badgeWhitelist");
         } else if (t.threat_level === "CRITICAL") {
           badgeCls = "crit";
-          badgeTxt = this.t("badgeCritical");
+          badgeTxt =
+            t.zone_status === "CUSTOM_NFZ" ? this.t("badgeCustomNfz") : this.t("badgeCritical");
         } else if (t.threat_level === "CAUTION") {
           badgeCls = "warn";
           badgeTxt =
@@ -592,6 +615,80 @@ class SkyGuardApp {
     document.getElementById("btn-mode-venue").addEventListener("click", () =>
       this._updateConfig({ site: { operating_mode: "venue_guard" } })
     );
+
+    // 顶部场地快速切换下拉框
+    document.getElementById("venue-preset-select").addEventListener("change", async (e) => {
+      const preset = VENUE_PRESETS[e.target.value];
+      if (!preset) return;
+      await this._updateConfig({
+        site: {
+          preset_id: preset.preset_id,
+          name: preset.name,
+          city: preset.city,
+          center_lat: preset.center_lat,
+          center_lng: preset.center_lng
+        },
+        geofence: {
+          inner_nfz_radius_m: preset.inner_nfz_radius_m,
+          outer_warn_radius_m: preset.outer_warn_radius_m,
+          custom_nfz_polygon: [],
+          show_formation_box: {
+            enabled: true,
+            polygon: preset.show_box
+          }
+        }
+      });
+      this.mapCtrl.recenter();
+    });
+
+    // 鼠标在地图上直接点击手绘自定义多边形禁飞区
+    const btnDraw = document.getElementById("btn-draw-nfz");
+    const btnFinish = document.getElementById("btn-finish-nfz");
+    const btnCancel = document.getElementById("btn-cancel-nfz");
+    const btnClear = document.getElementById("btn-clear-nfz");
+    const hintBanner = document.getElementById("draw-hint-banner");
+
+    const exitDrawUi = () => {
+      btnDraw.style.display = "inline-block";
+      btnFinish.style.display = "none";
+      btnCancel.style.display = "none";
+      hintBanner.style.display = "none";
+      this._syncDynamicLegends();
+    };
+
+    btnDraw.addEventListener("click", () => {
+      btnDraw.style.display = "none";
+      btnClear.style.display = "none";
+      btnFinish.style.display = "inline-block";
+      btnFinish.textContent = `${this.t("btnFinishNfz")} (0)`;
+      btnCancel.style.display = "inline-block";
+      hintBanner.style.display = "block";
+
+      this.mapCtrl.startDrawingCustomNfz((count) => {
+        btnFinish.textContent = `${this.t("btnFinishNfz")} (${count})`;
+      });
+    });
+
+    btnFinish.addEventListener("click", async () => {
+      const pts = this.mapCtrl.finishDrawingCustomNfz();
+      exitDrawUi();
+      if (pts.length >= 3) {
+        await this._updateConfig({
+          geofence: { custom_nfz_polygon: pts }
+        });
+      }
+    });
+
+    btnCancel.addEventListener("click", () => {
+      this.mapCtrl.cancelDrawingCustomNfz();
+      exitDrawUi();
+    });
+
+    btnClear.addEventListener("click", async () => {
+      await this._updateConfig({
+        geofence: { custom_nfz_polygon: [] }
+      });
+    });
 
     // 顶部快速演示剧本切换
     document.getElementById("quick-scenario-select").addEventListener("change", (e) => {

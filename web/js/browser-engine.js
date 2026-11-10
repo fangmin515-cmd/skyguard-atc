@@ -1,9 +1,104 @@
 // SkyGuard ATC — 浏览器端独立全功能态势与仿真引擎 (GitHub Pages 云端免后端独立运行核心)
-const STORAGE_CFG_KEY = "skyguard_atc_config_v1";
-const STORAGE_EVT_KEY = "skyguard_atc_events_v1";
+const STORAGE_CFG_KEY = "skyguard_atc_config_v2";
+const STORAGE_EVT_KEY = "skyguard_atc_events_v2";
+
+// 泰国典型无人机表演场地、商圈与景点预设库 (WGS-84)
+export const VENUE_PRESETS = {
+  iconsiam: {
+    preset_id: "iconsiam",
+    name: "ICONSIAM Riverfront Airspace",
+    city: "Bangkok, Thailand",
+    center_lat: 13.7267,
+    center_lng: 100.5105,
+    inner_nfz_radius_m: 450,
+    outer_warn_radius_m: 1200,
+    show_box: [
+      [13.7286, 100.5112],
+      [13.7282, 100.5142],
+      [13.7248, 100.5135],
+      [13.7252, 100.5106]
+    ]
+  },
+  centralworld: {
+    preset_id: "centralworld",
+    name: "CentralWorld Ratchaprasong",
+    city: "Bangkok, Thailand",
+    center_lat: 13.7466,
+    center_lng: 100.5393,
+    inner_nfz_radius_m: 400,
+    outer_warn_radius_m: 1100,
+    show_box: [
+      [13.7481, 100.5398],
+      [13.7478, 100.5422],
+      [13.7452, 100.5419],
+      [13.7455, 100.5395]
+    ]
+  },
+  asiatique: {
+    preset_id: "asiatique",
+    name: "Asiatique The Riverfront",
+    city: "Bangkok, Thailand",
+    center_lat: 13.7044,
+    center_lng: 100.5032,
+    inner_nfz_radius_m: 420,
+    outer_warn_radius_m: 1200,
+    show_box: [
+      [13.7062, 100.5008],
+      [13.7058, 100.5035],
+      [13.7029, 100.5028],
+      [13.7033, 100.5001]
+    ]
+  },
+  pattaya_bay: {
+    preset_id: "pattaya_bay",
+    name: "Pattaya Central Beach Bay",
+    city: "Pattaya, Chonburi",
+    center_lat: 12.9347,
+    center_lng: 100.8825,
+    inner_nfz_radius_m: 500,
+    outer_warn_radius_m: 1500,
+    show_box: [
+      [12.9368, 100.8788],
+      [12.9364, 100.8821],
+      [12.9328, 100.8816],
+      [12.9332, 100.8783]
+    ]
+  },
+  phuket_patong: {
+    preset_id: "phuket_patong",
+    name: "Patong Beach Airspace",
+    city: "Phuket, Thailand",
+    center_lat: 7.8965,
+    center_lng: 98.2965,
+    inner_nfz_radius_m: 500,
+    outer_warn_radius_m: 1400,
+    show_box: [
+      [7.8986, 98.2928],
+      [7.8982, 98.2959],
+      [7.8946, 98.2954],
+      [7.8950, 98.2923]
+    ]
+  },
+  chiangmai_gate: {
+    preset_id: "chiangmai_gate",
+    name: "Tha Phae Gate Old City",
+    city: "Chiang Mai, Thailand",
+    center_lat: 18.7877,
+    center_lng: 98.9933,
+    inner_nfz_radius_m: 380,
+    outer_warn_radius_m: 1000,
+    show_box: [
+      [18.7892, 98.9936],
+      [18.7889, 98.9958],
+      [18.7864, 98.9954],
+      [18.7867, 98.9932]
+    ]
+  }
+};
 
 export const DEFAULT_CONFIG = {
   site: {
+    preset_id: "iconsiam",
     name: "ICONSIAM Riverfront Airspace",
     city: "Bangkok, Thailand",
     center_lat: 13.7267,
@@ -16,6 +111,7 @@ export const DEFAULT_CONFIG = {
     inner_nfz_radius_m: 450,
     outer_warn_radius_m: 1200,
     altitude_ceiling_m: 300,
+    custom_nfz_polygon: [],
     show_formation_box: {
       enabled: true,
       name: "Chao Phraya Show Box A",
@@ -153,7 +249,15 @@ export class BrowserAutonomousEngine {
   }
 
   updateConfig(patch) {
+    const oldLat = this.config.site?.center_lat;
+    const oldLng = this.config.site?.center_lng;
     this._deepMerge(this.config, patch);
+    if (
+      (patch.site?.center_lat && patch.site.center_lat !== oldLat) ||
+      (patch.site?.center_lng && patch.site.center_lng !== oldLng)
+    ) {
+      this.trails = {};
+    }
     this._saveConfig();
     return this.config;
   }
@@ -376,13 +480,17 @@ export class BrowserAutonomousEngine {
       target.whitelist_status = "UNKNOWN";
     }
 
+    const customPoly = gf.custom_nfz_polygon || [];
+    const inCustomNfz = customPoly.length >= 3 && pointInPolygon(target.lat, target.lng, customPoly);
+
     const showBox = gf.show_formation_box || {};
     const inShowBox =
       showBox.enabled &&
       site.operating_mode === "show_escort" &&
       pointInPolygon(target.lat, target.lng, showBox.polygon || []);
 
-    if (inShowBox) target.zone_status = "SHOW_BOX";
+    if (inCustomNfz) target.zone_status = "CUSTOM_NFZ";
+    else if (inShowBox) target.zone_status = "SHOW_BOX";
     else if (distM <= innerR) target.zone_status = "NFZ_CORE";
     else if (distM <= outerR) target.zone_status = "WARN_ZONE";
     else target.zone_status = "OUTSIDE";
@@ -390,13 +498,17 @@ export class BrowserAutonomousEngine {
     if (target.whitelist_status === "WHITELIST") {
       target.threat_level = "NORMAL";
     } else if (target.category === "MANNED") {
-      if (distM <= outerR && target.alt_m <= 500) {
-        target.threat_level = distM <= innerR ? "CRITICAL" : "CAUTION";
+      if ((distM <= outerR || inCustomNfz) && target.alt_m <= 500) {
+        target.threat_level = distM <= innerR || inCustomNfz ? "CRITICAL" : "CAUTION";
       } else {
         target.threat_level = "NORMAL";
       }
     } else {
-      if (target.zone_status === "NFZ_CORE" || target.zone_status === "SHOW_BOX") {
+      if (
+        target.zone_status === "CUSTOM_NFZ" ||
+        target.zone_status === "NFZ_CORE" ||
+        target.zone_status === "SHOW_BOX"
+      ) {
         target.threat_level = "CRITICAL";
       } else if (target.zone_status === "WARN_ZONE" || target.whitelist_status === "BLACKLIST") {
         target.threat_level = "CAUTION";

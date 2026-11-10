@@ -24,6 +24,23 @@ export const I18N = {
     qScenHighWind: "剧本：湄南河强风停飞",
     qScenClean: "剧本：净空日常值守",
 
+    // 场地快速切换预设
+    venueIconsiam: "📍 曼谷 ICONSIAM (湄南河)",
+    venueCentralWorld: "📍 曼谷 CentralWorld 商圈",
+    venueAsiatique: "📍 曼谷 Asiatique 河滨夜市",
+    venuePattaya: "📍 芭提雅海滩湾 (表演区)",
+    venuePhuket: "📍 普吉岛芭东海滩景区",
+    venueChiangMai: "📍 清迈塔佩门古城广场",
+
+    // 手绘自定义多边形禁飞区
+    btnDrawNfz: "✎ 手绘自定义禁飞区",
+    btnFinishNfz: "✓ 完成闭合",
+    btnCancelDraw: "取消绘制",
+    btnClearNfz: "✕ 清除手绘禁飞区",
+    drawHint: "请在地图上依次点击添加禁飞区顶点（至少3个点）",
+    legendCustomNfz: "手绘多边形禁飞区",
+    badgeCustomNfz: "手绘禁飞区入侵",
+
     // Left panel
     readinessTitle: "集群起飞安全放行门限",
     verdictGo: "允许起飞 (GO)",
@@ -155,6 +172,21 @@ export const I18N = {
     qScenHighWind: "Demo: High Wind Hold",
     qScenClean: "Demo: Clean Airspace",
 
+    venueIconsiam: "📍 BKK · ICONSIAM Riverfront",
+    venueCentralWorld: "📍 BKK · CentralWorld Square",
+    venueAsiatique: "📍 BKK · Asiatique Pier",
+    venuePattaya: "📍 Pattaya Central Beach Bay",
+    venuePhuket: "📍 Phuket · Patong Beach",
+    venueChiangMai: "📍 Chiang Mai · Tha Phae Gate",
+
+    btnDrawNfz: "✎ Draw Custom NFZ",
+    btnFinishNfz: "✓ Finish Polygon",
+    btnCancelDraw: "Cancel",
+    btnClearNfz: "✕ Clear Custom NFZ",
+    drawHint: "Click on map to add NFZ vertices (min 3 points)",
+    legendCustomNfz: "Custom Polygon NFZ",
+    badgeCustomNfz: "CUSTOM NFZ BREACH",
+
     readinessTitle: "SHOW LAUNCH SAFETY GATE",
     verdictGo: "LAUNCH GO",
     verdictCaution: "LAUNCH CAUTION",
@@ -279,6 +311,21 @@ export const I18N = {
     qScenDarkFpv: "จำลอง: โดรน FPV ซ่อนเร้น",
     qScenHighWind: "จำลอง: ลมกระโชกแรงงดบิน",
     qScenClean: "จำลอง: น่านฟ้าปกติ",
+
+    venueIconsiam: "📍 กรุงเทพฯ · ICONSIAM",
+    venueCentralWorld: "📍 กรุงเทพฯ · CentralWorld",
+    venueAsiatique: "📍 กรุงเทพฯ · Asiatique",
+    venuePattaya: "📍 พัทยา · อ่าวพัทยากลาง",
+    venuePhuket: "📍 ภูเก็ต · หาดป่าตอง",
+    venueChiangMai: "📍 เชียงใหม่ · ประตูท่าแพ",
+
+    btnDrawNfz: "✎ วาดเขตห้ามบินเอง",
+    btnFinishNfz: "✓ บันทึกพื้นที่",
+    btnCancelDraw: "ยกเลิก",
+    btnClearNfz: "✕ ลบเขตที่วาดเอง",
+    drawHint: "คลิกบนแผนที่เพื่อกำหนดจุดมุมเขตห้ามบิน (อย่างน้อย 3 จุด)",
+    legendCustomNfz: "เขตห้ามบินกำหนดเอง",
+    badgeCustomNfz: "รุกล้ำเขตกำหนดเอง!",
 
     readinessTitle: "สถานะความปลอดภัยก่อนปล่อยฝูงโดรน",
     verdictGo: "พร้อมทำการบิน (GO)",

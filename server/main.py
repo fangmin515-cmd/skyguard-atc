@@ -49,6 +49,13 @@ class AppContext:
 
     def save_config(self, new_cfg: dict) -> dict:
         with self.lock:
+            old_site = self.config.get("site", {})
+            new_site = new_cfg.get("site", {})
+            if (
+                old_site.get("center_lat") != new_site.get("center_lat")
+                or old_site.get("center_lng") != new_site.get("center_lng")
+            ):
+                self.manager.simulator.reset_trails()
             self.config = new_cfg
             with open(CONFIG_PATH, "w", encoding="utf-8") as f:
                 json.dump(self.config, f, ensure_ascii=False, indent=2)

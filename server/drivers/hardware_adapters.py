@@ -38,17 +38,23 @@ class RealHardwareRegistry:
 
     def _udp_loop(self, port: int) -> None:
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.settimeout(2.0)
         try:
             sock.bind(("127.0.0.1", port))
         except OSError:
+            sock.close()
             return
         while True:
             try:
                 data, _ = sock.recvfrom(8192)
                 payload = json.loads(data.decode("utf-8"))
                 self.ingest_rid_packet(payload)
-            except Exception:
+            except socket.timeout:
                 continue
+            except OSError:
+                time.sleep(1.0)
+            except Exception:
+                time.sleep(0.2)
 
     def ingest_rid_packet(self, payload: Dict[str, Any]) -> None:
         """

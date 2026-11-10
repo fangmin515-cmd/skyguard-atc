@@ -1,5 +1,6 @@
 {
   "site": {
+    "preset_id": "iconsiam",
     "name": "ICONSIAM Riverfront Airspace",
     "city": "Bangkok, Thailand",
     "center_lat": 13.7267,
@@ -12,26 +13,15 @@
     "inner_nfz_radius_m": 450,
     "outer_warn_radius_m": 1200,
     "altitude_ceiling_m": 300,
+    "custom_nfz_polygon": [],
     "show_formation_box": {
       "enabled": true,
       "name": "Chao Phraya Show Box A",
       "polygon": [
-        [
-          13.7286,
-          100.5112
-        ],
-        [
-          13.7282,
-          100.5142
-        ],
-        [
-          13.7248,
-          100.5135
-        ],
-        [
-          13.7252,
-          100.5106
-        ]
+        [13.7286, 100.5112],
+        [13.7282, 100.5142],
+        [13.7248, 100.5135],
+        [13.7252, 100.5106]
       ],
       "max_alt_m": 220
     }
